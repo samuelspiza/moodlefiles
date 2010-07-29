@@ -111,7 +111,7 @@ def localfile(url, modul, overrides):
     newpath = "/".join(url.split("/")[5:])
     newpath = newpath.replace("?forcedownload=1", "")
     for o in overrides.values():
-        if (not 'regexp' in o or re.search(o['regexp'], newpath) is not None) and (not 'remote' in o or os.path.dirname(newpath).startswith(o['remote'])):
+        if (not 'regexp' in o or re.search(o['regexp'], os.path.basename(newpath)) is not None) and (not 'remote' in o or os.path.dirname(newpath).startswith(o['remote'])):
             if 'remote' in o:
                 newpath = newpath.replace(o['remote'] + "/", "")
             return os.path.join(modul, o['folder'], newpath)
