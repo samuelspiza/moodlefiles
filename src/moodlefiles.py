@@ -1,9 +1,42 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# Copyright (c) 2009-2010, Samuel Spiza
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  * Redistributions in binary form must reproduce the above
+#    copyright notice, this list of conditions and the following
+#    disclaimer in the documentation and/or other materials provided
+#    with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+"""moodlefiles - a package to access moodle files in python"""
 
+__author__ = "Samuel Spiza <sam.spiza@gmail.com>"
+__copyright__ = "Copyright (c) 2009-2010, Samuel Spiza"
+__license__ = "Simplified BSD License"
+__version__ = "0.1a"
 __all__ = ["moodleLogin","openCourse"]
 
-import os, re
+import re
+import os
 from BeautifulSoup import BeautifulSoup
 from fileupdater import safe_getResponse, File
 
@@ -111,7 +144,7 @@ def localfile(url, modul, overrides):
     newpath = "/".join(url.split("/")[5:])
     newpath = newpath.replace("?forcedownload=1", "")
     for o in overrides.values():
-        if (not 'regexp' in o or re.search(o['regexp'], os.path.basename(newpath)) is not None) and (not 'remote' in o or os.path.dirname(newpath).startswith(o['remote'])):
+        if (not 'regexp' in o or re.search(o['regexp'], newpath) is not None) and (not 'remote' in o or os.path.dirname(newpath).startswith(o['remote'])):
             if 'remote' in o:
                 newpath = newpath.replace(o['remote'] + "/", "")
             return os.path.join(modul, o['folder'], newpath)
