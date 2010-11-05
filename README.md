@@ -1,9 +1,9 @@
-Moodlefiles
-===========
+Moodle Files
+============
 
-A package to access moodle files in python.
+Downloads and updates files from the Moodle platform.
 
-[Moodlefiles](http://github.com/samuelspiza/moodlefiles) is hosted on Github.
+[Moodle Files](http://github.com/samuelspiza/moodlefiles) is hosted on Github.
 
 Attributions
 ------------

@@ -1,4 +1,4 @@
-__all__ = ["moodleLogin","openCourse"]
+__all__ = ["moodleLogin","openModule"]
 
 from moodlefiles import moodleLogin
-from moodlefiles import openCourse
+from moodlefiles import openModule
