@@ -28,14 +28,23 @@
 """fileupdater - a package for downloading and updating files"""
 
 __author__ = "Samuel Spiza <sam.spiza@gmail.com>"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __all__ = ["File","Filegroup","absUrl","absFindall","getResponse",
            "safe_getResponse"]
 
 import re
 import os
+import logging
+import logging.handlers
 import urllib
 import urllib2
+
+# NullHandler is part of the logging package in Python 3.1
+class NullHandler(logging.Handler):
+    def emit(self, record):
+        pass
+
+logging.getLogger('fileupdater').addHandler(NullHandler())
 
 opener = urllib2.build_opener(urllib2.HTTPCookieProcessor())
 urllib2.install_opener(opener)
@@ -149,6 +158,8 @@ class File:
     def update(self):
         if self.check():
             return self.download()
+        logger = logging.getLogger('fileupdater.File.update')
+        logger.debug("up to date: %s", self.local)
         return False
 
     def check(self):
@@ -196,6 +207,7 @@ class File:
         return self.response
 
     def download(self):
+        logger = logging.getLogger('fileupdater.File.download')
         newcontent = self.getNewContent()
         if newcontent is not None:
             localdir = os.path.dirname(self.local)
@@ -203,6 +215,9 @@ class File:
                 print "makedirs: " + localdir
                 if not self.test:
                     os.makedirs(localdir)
+                    logger.info("makedirs: %s", localdir)
+                else:
+                    logger.debug("does not exist: %s", localdir)
             print "write: " + self.local
             if not self.test:
                 try:
@@ -212,9 +227,12 @@ class File:
                         file = open(self.local, "wb")
                     file.write(newcontent)
                     file.close()
+                    logger.info("write: %s", self.local)
                     return True
                 except IOError, e:
                     print "IOError: " + e + ", " + self.local
+            else:
+                logger.debug("new version available: %s", self.local)
         return False
 
     def __str__(self):
