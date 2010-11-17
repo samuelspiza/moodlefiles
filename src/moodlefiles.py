@@ -37,7 +37,7 @@ Downloads and updates files from the Moodle platform.
 __author__ = "Samuel Spiza <sam.spiza@gmail.com>"
 __copyright__ = "Copyright (c) 2009-2010, Samuel Spiza"
 __license__ = "Simplified BSD License"
-__version__ = "0.1.1"
+__version__ = "0.2"
 __all__ = ["moodleLogin","openModule"]
 
 import re
@@ -61,82 +61,101 @@ def moodleLogin(user, password):
                 'lt': token, '_eventId': 'submit'}
     safe_getResponse(casUrl + '?service=' + casSvc, postData)
 
-def openModule(moduleName, url, overrides=[], test=False):
-    """Downloads and updates all files for a module."""
-    content = safe_getResponse(url).read()
-    soup = BeautifulSoup(content)
-    links = soup.findAll(attrs={'href' : re.compile("resource/view.php")})
-    for link in links:
-        if not link.span is None:
-            download(link['href'], moduleName, overrides, test=test)
+class Module:
+    def __init__(self, moduleName, url, overrides=[], defaultDir=".",
+                 test=False):
+        self.name       = moduleName
+        self.url        = url
+        self.overrides  = overrides
+        self.defaultDir = defaultDir
+        self.test       = test
 
-def download(url, moduleName, overrides, test=False):
-    """Downloads files recursively."""
-    response = safe_getResponse(url)
-    if response is not None:
-        contentType = response.info().get("Content-Type")
+    def start(self):
+        """Downloads and updates all files for a module."""
+        content = safe_getResponse(self.url).read()
+        soup = BeautifulSoup(content)
+        links = soup.findAll(attrs={'href' : re.compile("resource/view.php")})
+        for link in links:
+            if not link.span is None:
+                self.download(link['href'])
 
-        # Skip download of unsupported content types
-        unsupportedContentTypes = ["audio/x-pn-realaudio"]
-        for ct in unsupportedContentTypes:
-            if contentType.startswith(ct):
-                return
+    def download(self, url):
+        """Downloads files recursively."""
+        response = safe_getResponse(url)
+        if response is not None:
+            contentType = response.info().get("Content-Type")
 
-        if not contentType.startswith('text/html'):
-            # Direct download
-            saveFile(response.geturl(), moduleName, overrides, test=test)
+            # Skip download of unsupported content types
+            unsupportedContentTypes = ["audio/x-pn-realaudio"]
+            for ct in unsupportedContentTypes:
+                if contentType.startswith(ct):
+                    return
 
+            if not contentType.startswith('text/html'):
+                # Direct download
+                self.saveFile(response.geturl())
+
+            else:
+                # Indirect download or recursion
+                content = response.read()
+                soup = BeautifulSoup(content)
+
+                # Frames
+                regexp = "http://moodle.uni-duisburg-essen.de/file.php"
+                frames = soup.findAll(attrs={'src' : re.compile(regexp)})
+                for f in frames:
+                    self.saveFile(f['src'])
+
+                # Files
+                regexp = "http://moodle.uni-duisburg-essen.de/file.php"
+                files = soup.findAll(attrs={'href' : re.compile(regexp)})
+                for f in files:
+                    self.saveFile(f['href'])
+
+                # Dirs
+                dirs = soup.findAll(attrs={'href' : re.compile("subdir")})
+                for d in dirs:
+                    base = "http://moodle.uni-duisburg-essen.de/mod/resource/"
+                    href = base + d['href']
+                    self.download(href)
+
+                # PopUp links
+                popup = soup.find(attrs={'href' : re.compile("inpopup=true")})
+                if popup is not None:
+                    self.download(popup['href'])
+
+    def saveFile(self, url):
+        """Saves or updates the file localy."""
+        local = self.buildLocalFilePath(url)
+        if local is None:
+            return False
         else:
-            # Indirect download or recursion
-            content = response.read()
-            soup = BeautifulSoup(content)
+            # Update file and return if the local file was modified
+            return File(url, local, test=self.test).update()
 
-            # Frames
-            regobj = re.compile("http://moodle.uni-duisburg-essen.de/file.php")
-            frames = soup.findAll(attrs={'src' : regobj})
-            for f in frames:
-                saveFile(f['src'], moduleName, overrides, test=test)
-
-            # Files
-            regobj = re.compile("http://moodle.uni-duisburg-essen.de/file.php")
-            files = soup.findAll(attrs={'href' : regobj})
-            for f in files:
-                saveFile(f['href'], moduleName, overrides, test=test)
-
-            # Dirs
-            dirs = soup.findAll(attrs={'href' : re.compile("subdir")})
-            for d in dirs:
-                baseurl = "http://moodle.uni-duisburg-essen.de/mod/resource/"
-                href = baseurl + d['href']
-                download(href, moduleName, overrides, test=test)
-
-            # PopUp links
-            popup = soup.find(attrs={'href' : re.compile("inpopup=true")})
-            if popup is not None:
-                download(popup['href'], moduleName, overrides, test=test)
-
-def saveFile(url, moduleName, overrides, test=False):
-    """Saves or updates the file localy."""
-    local = buildLocalFilePath(url, moduleName, overrides)
-    # Update file and return if the local file was modified
-    return File(url, local, test=test).update()
-
-def buildLocalFilePath(url, moduleName, overrides):
-    """Build the path of the local file.
-    
-    Takes the the tail from the URL after 'file.php', goes through the list of
-    overrides and uses the first that applies to the file to build the local
-    filepath. If no override applies to the file, it will be placed in the
-    subdirectory 'stuff'.
-    """
-    newpath = "/".join(url.split("/")[5:])
-    newpath = newpath.replace("?forcedownload=1", "")
-    for o in overrides.values():
-        if (not 'regexp' in o or re.search(o['regexp'], newpath) is not None) \
-            and (not 'remote' in o or newpath.startswith(o['remote'])):
-            # Strip the remote directory from the new path
-            if 'remote' in o:
-                newpath = newpath.replace(o['remote'] + "/", "")
-            return os.path.join(moduleName, o['folder'], newpath)
-    # Use subdirectory 'stuff' if nothing matched
-    return os.path.join(moduleName, "stuff", newpath)
+    def buildLocalFilePath(self, url):
+        """Build the path of the local file.
+        
+        Takes the the tail from the URL after 'file.php', goes through the list
+        of overrides and uses the first that applies to the file to build the
+        local filepath. If no override applies to the file, it will be placed
+        in the subdirectory 'stuff'. Returns None if the override dosen't
+        specify a 'folder' which means that the file should not be downloaded.
+        """
+        newpath = "/".join(url.split("/")[5:])
+        newpath = newpath.replace("?forcedownload=1", "")
+        for o in self.overrides.values():
+            if (not 'regexp' in o \
+                or re.search(o['regexp'], newpath) is not None) \
+                and (not 'remote' in o or newpath.startswith(o['remote'])):
+                # Strip the remote directory from the new path
+                if 'remote' in o:
+                    newpath = newpath.replace(o['remote'] + "/", "")
+                if 'folder' in o:
+                    return os.path.normpath(
+                               os.path.join(self.name, o['folder'], newpath))
+                else:
+                    return None
+        # Use subdirectory 'stuff' if nothing matched
+        return os.path.normpath(
+                   os.path.join(self.name, self.defaultDir, newpath))
