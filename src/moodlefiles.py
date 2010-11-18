@@ -37,7 +37,7 @@ Downloads and updates files from the Moodle platform.
 __author__ = "Samuel Spiza <sam.spiza@gmail.com>"
 __copyright__ = "Copyright (c) 2009-2010, Samuel Spiza"
 __license__ = "Simplified BSD License"
-__version__ = "0.2"
+__version__ = "0.2.1"
 __all__ = ["moodleLogin","openModule"]
 
 import re
@@ -62,11 +62,12 @@ def moodleLogin(user, password):
     safe_getResponse(casUrl + '?service=' + casSvc, postData)
 
 class Module:
-    def __init__(self, moduleName, url, overrides=[], defaultDir=".",
-                 test=False):
+    def __init__(self, moduleName, url, overrides=[], whitelist=False,
+                 defaultDir=".", test=False):
         self.name       = moduleName
         self.url        = url
         self.overrides  = overrides
+        self.whitelist  = whitelist
         self.defaultDir = defaultDir
         self.test       = test
 
@@ -151,11 +152,17 @@ class Module:
                 # Strip the remote directory from the new path
                 if 'remote' in o:
                     newpath = newpath.replace(o['remote'] + "/", "")
+                # Return path with new folder or ignore if no new folder is
+                # specified.
                 if 'folder' in o:
                     return os.path.normpath(
                                os.path.join(self.name, o['folder'], newpath))
                 else:
                     return None
-        # Use subdirectory 'stuff' if nothing matched
-        return os.path.normpath(
-                   os.path.join(self.name, self.defaultDir, newpath))
+        # Use the default directory if nothing matched or ignore in whitelist
+        # mode.
+        if not self.whitelist:
+            return os.path.normpath(
+                       os.path.join(self.name, self.defaultDir, newpath))
+        else:
+            return None
