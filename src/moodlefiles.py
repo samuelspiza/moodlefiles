@@ -37,7 +37,7 @@ Downloads and updates files from the Moodle platform.
 __author__ = "Samuel Spiza <sam.spiza@gmail.com>"
 __copyright__ = "Copyright (c) 2009-2010, Samuel Spiza"
 __license__ = "Simplified BSD License"
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __all__ = ["moodleLogin","openModule"]
 
 import re
@@ -45,7 +45,7 @@ import os
 from BeautifulSoup import BeautifulSoup
 from fileupdater import safe_getResponse, File
 
-def moodleLogin(user, password):
+def moodleLogin(username, password):
     """Logs the user into the moodle system."""
     # CAS URLs
     casUrl = 'https://cas.uni-duisburg-essen.de/cas/login'
@@ -57,9 +57,10 @@ def moodleLogin(user, password):
     token = re.search(regexp, data, re.MULTILINE).group(1)
 
     # Login
-    postData = {'username': user, 'password': password,
+    postData = {'username': username, 'password': password,
                 'lt': token, '_eventId': 'submit'}
-    safe_getResponse(casUrl + '?service=' + casSvc, postData)
+    res = safe_getResponse(casUrl + '?service=' + casSvc, postData)
+    return not re.search('<div id="msg" class="success">', res.read()) is None
 
 class Module:
     def __init__(self, moduleName, url, overrides=[], whitelist=False,
